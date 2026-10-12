@@ -22,6 +22,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from PIL import Image
+from fhir_export import build_fhir_bundle
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -1477,6 +1478,43 @@ async def get_record(request: Request, record_id: int) -> JSONResponse:
     if not row:
         raise HTTPException(status_code=404, detail="Record not found.")
     return JSONResponse(serialize_document(row))
+
+
+@app.get("/api/records/{record_id}/fhir")
+async def export_record_fhir(request: Request, record_id: int) -> Response:
+    user = require_user(request)
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM documents WHERE id = ? AND owner_id = ?",
+        (record_id, user["id"]),
+    ).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Record not found.")
+
+    record = {
+        "id": row["id"],
+        "filename": row["filename"],
+        "document_date": row["document_date"],
+        "document_type": row["document_type"],
+        "medicines": json.loads(row["medicines"] or "[]"),
+        "dosages": json.loads(row["dosages"] or "[]"),
+        "diagnoses": json.loads(row["diagnoses"] or "[]"),
+        "lab_values": json.loads(row["lab_values"] or "[]"),
+        "source_type": row["source_type"],
+        "is_synthetic": bool(row["is_synthetic"]),
+        "status": row["status"],
+        "created_at": row["created_at"],
+    }
+    bundle = build_fhir_bundle(record, file_url=f"/api/records/{record_id}/file")
+    body = json.dumps(bundle, ensure_ascii=False, indent=2)
+    return Response(
+        content=body,
+        media_type="application/fhir+json",
+        headers={
+            "Content-Disposition": f'attachment; filename="medivault-record-{record_id}-fhir-prototype.json"',
+        },
+    )
 
 
 @app.put("/api/records/{record_id}/summary")
