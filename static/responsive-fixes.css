@@ -1,0 +1,25 @@
+@media (max-width: 760px) {
+  .hero-visual {
+    overflow: hidden;
+  }
+
+  .visual-glow {
+    width: min(100%, 420px);
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .float-card-left {
+    left: 0;
+  }
+
+  .float-card-right {
+    right: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .hero-section {
+    overflow: hidden;
+  }
+}

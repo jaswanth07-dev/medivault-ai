@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Upload documents — MediVault AI{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="section-kicker">DOCUMENT INTAKE</span><h1>Upload & review</h1><p>Choose a document, verify what was extracted, then save it to your timeline.</p></div><a class="button button-quiet" href="/timeline">View timeline →</a></div>
+<div class="upload-page-grid"><section class="panel hero-panel upload-panel">
+  <div class="panel-header"><div><span class="section-kicker">STEP 1 OF 2</span><h2>Choose a document</h2></div><span class="file-limit">PDF · JPG · JPEG · PNG · up to 10 MB</span></div>
+  <form id="uploadForm" class="upload-form">
+    <input id="fileInput" class="file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
+    <div id="uploadDropzone" class="upload-dropzone"><div id="filePrompt" class="file-prompt"><span class="upload-icon" aria-hidden="true">＋</span><span>Choose a PDF, JPG, or PNG</span><small>Maximum file size: 10 MB</small><button id="chooseFileBtn" type="button" class="secondary-button">Browse files</button></div>
+      <div id="selectedFile" class="selected-file hidden" aria-live="polite"><span id="fileTypeIcon" class="file-type-icon" aria-hidden="true">PDF</span><span class="selected-file-details"><strong id="selectedFileName"></strong><small id="selectedFileSize"></small></span><div class="file-actions"><button id="changeFileBtn" type="button" class="text-button">Change file</button><button id="removeFileBtn" type="button" class="text-button">Remove</button></div></div></div>
+    <button id="extractButton" type="submit" class="primary-button" disabled>Extract document</button><div id="uploadStatus" class="upload-status" role="status" aria-live="polite"></div>
+  </form>
+</section>
+<section class="content-card review-panel"><div class="card-heading"><div><span class="section-kicker">STEP 2 OF 2</span><h2>Verify extracted fields</h2></div><span class="review-badge">Editable</span></div><div id="reviewBlock" class="review-empty">Upload a document to see extracted details here.</div>
+<form id="reviewForm" class="review-form hidden"><div class="field-row"><label>Document date<input id="document_date" name="document_date" type="text" /></label><label>Document type<input id="document_type" name="document_type" type="text" /></label></div><label>Medicines<textarea id="medicines" name="medicines" rows="3"></textarea></label><label>Dosages<textarea id="dosages" name="dosages" rows="3"></textarea></label><label>Diagnoses mentioned<textarea id="diagnoses" name="diagnoses" rows="3"></textarea></label><label>Laboratory values<textarea id="lab_values" name="lab_values" rows="5"></textarea><small>Keep valid JSON objects with name, value, unit, and reference_range.</small></label><label>Plain-language summary<textarea id="summaryText" name="summaryText" rows="5"></textarea></label><div class="form-actions"><button type="button" id="saveRecordBtn" class="button button-primary">Save to timeline <span>→</span></button></div></form></section></div>
+<div id="summaryBox" class="summary-box empty hidden" aria-live="polite"></div><div class="disclaimer-banner"><b>Review carefully:</b> Extraction may be incomplete or incorrect. Check every field against your original. This is not a diagnosis or treatment recommendation.</div>
+{% endblock %}
+{% block scripts %}<script src="/static/app.js?v=upload3" defer></script>{% endblock %}

@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}MediVault AI — Your health, thoughtfully organized{% endblock %}
+{% block public_content %}
+<section class="hero-section">
+  <div class="hero-copy"><div class="eyebrow-pill"><span class="pulse-dot"></span> A clearer view of your health records</div>
+    <h1>Your health story,<br /><span>all in one place.</span></h1>
+    <p class="hero-lede">Bring medical documents together, review extracted details, and follow your records over time—with you in control at every step.</p>
+    <div class="hero-actions"><a class="button button-primary" href="{% if current_user %}/dashboard{% else %}/signup{% endif %}">Get started <span aria-hidden="true">→</span></a><a class="button button-quiet" href="/#how-it-works">See how it works <span aria-hidden="true">↓</span></a></div>
+    <div class="hero-footnote"><span class="shield-icon">✓</span> Private account · You review before saving · No diagnosis</div>
+  </div>
+  <div class="hero-visual" aria-label="Illustration of a personal health records dashboard">
+    <div class="visual-glow"></div><div class="preview-window">
+      <div class="preview-top"><div class="preview-brand"><span class="mini-mark">✚</span> Your health space</div><span class="preview-avatar">MV</span></div>
+      <div class="preview-welcome"><span class="preview-greeting">PERSONAL HEALTH RECORDS</span><h3>A clearer picture, over time.</h3><p>Your documents stay organized in one timeline.</p></div>
+      <div class="preview-metrics"><div><span class="metric-icon teal-icon">▤</span><b>Documents</b><small>Review & organize</small></div><div><span class="metric-icon blue-icon">◷</span><b>Timeline</b><small>Follow the dates</small></div></div>
+      <div class="preview-record"><div class="record-symbol">▤</div><div><b>Lab report</b><small>Example record · Synthetic</small></div><span class="record-chip">REVIEWED</span></div>
+      <div class="preview-record"><div class="record-symbol lavender">▧</div><div><b>Visit summary</b><small>Example record · Synthetic</small></div><span class="record-chip muted-chip">IN TIMELINE</span></div>
+      <div class="preview-caption"><span class="shield-icon">✓</span> Illustrative preview — no real patient data</div>
+    </div><div class="float-card float-card-left"><span class="float-icon">✓</span><span><b>You stay in control</b><small>Verify before saving</small></span></div><div class="float-card float-card-right"><span class="float-icon purple">◷</span><span><b>One timeline</b><small>Records by date</small></span></div>
+  </div>
+</section>
+<section class="trust-strip"><span>BUILT AROUND YOUR REVIEW</span><div><span>⌕</span> Extract details</div><div><span>✎</span> Edit and verify</div><div><span>◷</span> Keep a timeline</div></section>
+<section id="features" class="section-block features-section"><div class="section-heading"><span class="section-kicker">MADE FOR CLARITY</span><h2>From scattered files to a clearer picture</h2><p>Useful tools for organizing health information—without replacing professional care.</p></div>
+  <div class="feature-grid">
+    <article class="feature-card"><span class="feature-icon teal-icon">▤</span><h3>Document upload</h3><p>Keep PDFs and common image files together in your private workspace.</p><a href="{% if current_user %}/documents{% else %}/signup{% endif %}">Organize a document <span>→</span></a></article>
+    <article class="feature-card"><span class="feature-icon blue-icon">⌕</span><h3>Structured extraction</h3><p>Review dates, document types, medicines, diagnoses mentioned, and lab values.</p><a href="/about">Understand the limits <span>→</span></a></article>
+    <article class="feature-card"><span class="feature-icon lavender">☷</span><h3>Plain-language summaries</h3><p>Read a cautious overview built from extracted fields, then verify it yourself.</p><a href="/about">Our safety approach <span>→</span></a></article>
+    <article class="feature-card"><span class="feature-icon green-icon">◷</span><h3>Health timeline</h3><p>See your saved documents in date order and open each record for details.</p><a href="{% if current_user %}/timeline{% else %}/signup{% endif %}">Explore your workspace <span>→</span></a></article>
+  </div>
+</section>
+<section id="how-it-works" class="section-block steps-section"><div class="section-heading"><span class="section-kicker">SIMPLE BY DESIGN</span><h2>Your documents. Your review. Your timeline.</h2></div><div class="steps-grid"><article><span class="step-number">01</span><h3>Upload</h3><p>Add a PDF or image of a medical document to your account.</p></article><article><span class="step-number">02</span><h3>Review & edit</h3><p>Check the extracted details against the original and correct anything needed.</p></article><article><span class="step-number">03</span><h3>Save & revisit</h3><p>Save verified details and find them later in your personal timeline.</p></article></div></section>
+<section class="privacy-band"><div class="privacy-copy"><span class="section-kicker">PRIVACY & SAFETY</span><h2>Designed to organize information,<br />not make health decisions.</h2><p>Your records are scoped to your account in this application. Extracted details can be incomplete or wrong, so the original document remains available for review.</p><a class="text-link" href="/about">Read about privacy and limitations →</a></div><div class="privacy-points"><div><span>01</span><b>You verify the details</b><small>Nothing is saved from an upload until you review and choose to save.</small></div><div><span>02</span><b>No diagnosis or treatment advice</b><small>Summaries do not diagnose or recommend medication changes.</small></div><div><span>03</span><b>Synthetic demo data</b><small>Clearly labeled fictional examples are available after sign-up.</small></div></div></section>
+<section class="closing-cta"><div><span class="section-kicker">TAKE THE FIRST STEP</span><h2>Make your records easier to revisit.</h2><p>Create an account to set up your own private workspace.</p></div><a href="{% if current_user %}/dashboard{% else %}/signup{% endif %}" class="button button-light">Get started <span>→</span></a></section>
+{% endblock %}

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediVault AI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Clinical document intake</p>
+          <h1>MediVault AI</h1>
+        </div>
+        <div class="status-pill">Synthetic data labeled • informs review only</div>
+      </header>
+
+      <main class="dashboard">
+        <section class="panel hero-panel">
+          <div class="panel-header">
+            <h2>Upload a medical document</h2>
+            <button id="demoLoadBtn" class="secondary-button">Load demo records</button>
+          </div>
+
+          <form id="uploadForm" class="upload-form">
+            <input id="fileInput" class="file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
+            <div id="uploadDropzone" class="upload-dropzone">
+              <div id="filePrompt" class="file-prompt">
+                <span class="upload-icon" aria-hidden="true">＋</span>
+                <span>Choose a PDF, JPG, or PNG</span>
+                <small>Maximum file size: 10 MB</small>
+                <button id="chooseFileBtn" type="button" class="secondary-button">Browse files</button>
+              </div>
+              <div id="selectedFile" class="selected-file hidden" aria-live="polite">
+                <span id="fileTypeIcon" class="file-type-icon" aria-hidden="true">PDF</span>
+                <span class="selected-file-details">
+                  <strong id="selectedFileName"></strong>
+                  <small id="selectedFileSize"></small>
+                </span>
+                <div class="file-actions">
+                  <button id="changeFileBtn" type="button" class="text-button">Change file</button>
+                  <button id="removeFileBtn" type="button" class="text-button">Remove</button>
+                </div>
+              </div>
+            </div>
+            <button id="extractButton" type="submit" class="primary-button" disabled>Extract document</button>
+            <div id="uploadStatus" class="upload-status" role="status" aria-live="polite"></div>
+          </form>
+
+          <div class="disclaimer">
+            <strong>Medical disclaimer:</strong> This tool supports documentation review and summary creation only. It does not diagnose patients or recommend medication changes.
+          </div>
+        </section>
+
+        <section class="panel review-panel">
+          <h2>Extracted fields</h2>
+          <div id="reviewBlock" class="review-empty">
+            No document has been processed yet.
+          </div>
+          <form id="reviewForm" class="review-form hidden">
+            <div class="field-row">
+              <label>Document date
+                <input id="document_date" name="document_date" type="text" />
+              </label>
+              <label>Document type
+                <input id="document_type" name="document_type" type="text" />
+              </label>
+            </div>
+
+            <label>Medicines
+              <textarea id="medicines" name="medicines" rows="4"></textarea>
+            </label>
+
+            <label>Dosages
+              <textarea id="dosages" name="dosages" rows="4"></textarea>
+            </label>
+
+            <label>Diagnoses mentioned
+              <textarea id="diagnoses" name="diagnoses" rows="4"></textarea>
+            </label>
+
+            <label>Lab values
+              <textarea id="lab_values" name="lab_values" rows="6"></textarea>
+            </label>
+
+            <label>Summary preview
+              <textarea id="summaryText" name="summaryText" rows="6"></textarea>
+            </label>
+
+            <div class="form-actions">
+              <button type="button" id="saveRecordBtn" class="primary-button">Save to timeline</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel summary-panel">
+          <h2>Review summary</h2>
+          <div id="summaryBox" class="summary-box empty">
+            Extracted content will appear here after upload.
+          </div>
+        </section>
+      </main>
+
+      <section class="panel timeline-panel">
+        <div class="panel-header">
+          <h2>Chronological health timeline</h2>
+        </div>
+        <div id="timeline" class="timeline"></div>
+      </section>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

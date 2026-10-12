@@ -1,0 +1,9 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+PyMuPDF==1.24.10
+pillow==10.4.0
+pytesseract==0.3.13
+jinja2==3.1.4
+python-dotenv==1.0.1
+httpx==0.28.1

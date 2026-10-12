@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Overview — MediVault AI{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="section-kicker">YOUR WORKSPACE</span><h1>Welcome, {{ current_user.display_name or current_user.email.split('@')[0] }}</h1><p>Your records, organized in one private space.</p></div><a class="button button-primary" href="/documents">＋ Upload document</a></div>
+<div class="metric-grid">
+  <article class="metric-card"><span class="metric-icon teal-icon">▤</span><span class="metric-label">Saved documents</span><strong id="statDocuments">—</strong><small>In your account</small></article>
+  <article class="metric-card"><span class="metric-icon blue-icon">◷</span><span class="metric-label">Latest record</span><strong id="statTimeline">—</strong><small>Most recently saved date</small></article>
+  <article class="metric-card"><span class="metric-icon green-icon">▧</span><span class="metric-label">Document categories</span><strong id="statCategories">—</strong><small>Based on your records</small></article>
+</div>
+<div class="workspace-grid"><section class="content-card"><div class="card-heading"><div><span class="section-kicker">RECENT ACTIVITY</span><h2>Recent documents</h2><p id="recentCountLabel" class="muted-copy">Loading recent records…</p></div><a href="/timeline" class="text-link">View all documents →</a></div><div id="dashboardRecent" class="record-list"><div class="loading-state">Loading your records…</div></div></section>
+<section class="content-card categories-card"><div class="card-heading"><div><span class="section-kicker">YOUR LIBRARY</span><h2>Categories</h2></div></div><div id="dashboardCategories" class="category-list"><div class="loading-state">Loading categories…</div></div><div class="demo-callout"><span class="demo-star">✦</span><div><b>Want to explore?</b><p>Load five clearly labeled fictional sample records.</p><button id="loadDemoBtn" type="button" class="text-link-button">Load demo records →</button></div></div></section></div>
+<div class="disclaimer-banner"><b>Important:</b> MediVault AI organizes documents only. Confirm all extracted information with the original document and a qualified clinician. It does not diagnose or recommend treatment changes.</div>
+{% endblock %}

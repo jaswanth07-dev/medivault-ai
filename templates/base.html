@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#073d45" />
+  <title>{% block title %}MediVault AI — Your health, organized{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css?v=site3" />
+  <link rel="stylesheet" href="/static/site.css?v=4" />
+  <link rel="stylesheet" href="/static/responsive-fixes.css?v=4" />
+  <link rel="stylesheet" href="/static/workspace-polish.css?v=2" />
+</head>
+  <body class="{% if active_page is defined %}is-workspace{% endif %}">
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="MediVault AI home"><span class="brand-mark" aria-hidden="true">✚</span><span>MediVault <b>AI</b></span></a>
+    <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-expanded="false" aria-controls="primaryNav" aria-label="Open navigation">☰</button>
+    <nav class="primary-nav" id="primaryNav" aria-label="Main navigation">
+      <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Home</a>
+      <a href="/#features">Features</a>
+      <a href="/#how-it-works">How It Works</a>
+      <a href="/about">About</a>
+      <a href="/contact">Contact</a>
+      {% if current_user %}
+        <a class="nav-login" href="/dashboard">Dashboard</a>
+        <button class="nav-cta nav-logout" data-logout type="button">Log out</button>
+      {% else %}
+        <a class="nav-login" href="/login">Log in</a>
+        <a class="nav-cta" href="/signup">Get started</a>
+      {% endif %}
+    </nav>
+  </header>
+  {% if active_page is defined %}
+  <div class="workspace-shell">
+    <aside class="workspace-sidebar" id="workspaceSidebar" aria-label="Dashboard navigation">
+      <div class="sidebar-label">YOUR WORKSPACE</div>
+      <a href="/dashboard" class="side-link {% if active_page == 'overview' %}active{% endif %}"><span>⌂</span>Overview</a>
+      <a href="/documents" class="side-link {% if active_page == 'upload' %}active{% endif %}"><span>＋</span>Upload documents</a>
+      <a href="/timeline" class="side-link {% if active_page == 'timeline' %}active{% endif %}"><span>◷</span>Health timeline</a>
+      <div class="sidebar-label sidebar-label-spaced">ACCOUNT</div>
+      <a href="/profile" class="side-link {% if active_page == 'profile' %}active{% endif %}"><span>◉</span>Profile</a>
+      <a href="/settings" class="side-link {% if active_page == 'settings' %}active{% endif %}"><span>⚙</span>Settings</a>
+      <button class="side-link side-logout" data-logout type="button"><span>⇥</span>Log out</button>
+      <div class="sidebar-note"><strong>Private by design</strong><span>Your records are visible only to your account in this local application.</span></div>
+      <a class="side-about" href="/about">About & safety</a>
+    </aside>
+    <main class="workspace-main">{% block content %}{% endblock %}</main>
+  </div>
+  {% else %}
+    <main class="public-main">{% block public_content %}{% endblock %}</main>
+  {% endif %}
+  <footer class="site-footer">
+    <div class="footer-top"><a class="brand brand-footer" href="/"><span class="brand-mark" aria-hidden="true">✚</span><span>MediVault <b>AI</b></span></a><p>Health documents, thoughtfully organized.</p>
+      <nav aria-label="Footer navigation"><a href="/#features">Features</a><a href="/about">About</a><a href="/contact">Contact</a><a href="/login">Log in</a></nav>
+    </div>
+    <div class="footer-bottom"><span>© 2026 MediVault AI · An educational project</span><span>Not a medical device. Not for diagnosis or treatment decisions.</span></div>
+  </footer>
+  <dialog id="logoutDialog" class="confirm-dialog" aria-labelledby="logoutDialogTitle" aria-describedby="logoutDialogText">
+    <form method="dialog" class="confirm-dialog-content">
+      <span class="section-kicker">ACCOUNT SECURITY</span>
+      <h2 id="logoutDialogTitle">Log out?</h2>
+      <p id="logoutDialogText">You will need to log in again to access your private workspace.</p>
+      <div class="confirm-dialog-actions"><button class="button button-quiet" value="cancel">Cancel</button><button class="button button-primary" value="logout">Log out</button></div>
+    </form>
+  </dialog>
+  <script src="/static/site.js?v=5" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

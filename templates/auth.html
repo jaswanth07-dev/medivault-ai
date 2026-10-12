@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}{% if mode == 'signup' %}Create account{% else %}Log in{% endif %} — MediVault AI{% endblock %}
+{% block public_content %}
+<section class="auth-page"><div class="auth-aside"><span class="section-kicker">YOUR PRIVATE WORKSPACE</span><h1>{% if mode == 'signup' %}A clearer home for your health records.{% else %}Welcome back to your health space.{% endif %}</h1><p>Organize medical documents, review the extracted details, and revisit saved records over time.</p><div class="auth-assurance"><span>✓</span><div><b>Private account sessions</b><small>Your records are scoped to your account on this application.</small></div></div><div class="auth-assurance"><span>✓</span><div><b>Review before saving</b><small>Extracted content is editable and should be checked against the source.</small></div></div><small class="auth-aside-disclaimer">Not for diagnosis or treatment decisions.</small></div>
+  <div class="auth-card"><a class="auth-back" href="/">← Back to home</a><div class="auth-card-heading"><span class="section-kicker">{% if mode == 'signup' %}GET STARTED{% else %}ACCOUNT ACCESS{% endif %}</span><h2>{% if mode == 'signup' %}Create your account{% else %}Log in{% endif %}</h2><p>{% if mode == 'signup' %}Set up a private workspace for your records.{% else %}Enter your account details to continue.{% endif %}</p></div>
+    <form id="authForm" data-mode="{{ mode }}" class="auth-form" novalidate>
+      {% if mode == 'signup' %}<label for="authName">Full name<input id="authName" name="name" autocomplete="name" minlength="2" maxlength="100" required placeholder="Your name" /></label>{% endif %}
+      <label for="authEmail">Email address<input id="authEmail" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com" /></label>
+      <label for="authPassword">Password<div class="password-input"><input id="authPassword" name="password" type="password" autocomplete="{% if mode == 'signup' %}new-password{% else %}current-password{% endif %}" minlength="10" maxlength="128" required placeholder="{% if mode == 'signup' %}At least 10 characters{% else %}Your password{% endif %}" /><button class="password-toggle" type="button" data-toggle-password aria-label="Show password">Show</button></div>{% if mode == 'signup' %}<small>Use 10–128 characters.</small>{% endif %}</label>
+      <div id="authMessage" class="form-message" role="status" aria-live="polite"></div><button class="button button-primary button-wide" type="submit">{% if mode == 'signup' %}Create account{% else %}Log in{% endif %}<span>→</span></button>
+    </form>
+    <p class="auth-switch">{% if mode == 'signup' %}Already have an account? <a href="/login">Log in</a>{% else %}New to MediVault AI? <a href="/signup">Create an account</a>{% endif %}</p>
+    <div class="auth-demo-note"><b>Demo mode is honest:</b> No sample account is pre-created. Use your own email and password to register. Sample medical records are fictional and can be loaded from your dashboard.</div>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/auth.js?v=1" defer></script>{% endblock %}
