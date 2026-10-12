@@ -857,7 +857,22 @@ def extract_lab_values(text: str) -> list[dict[str, str]]:
     return labs[:20]
 
 
-def build_summary(fields: dict[str, Any]) -> str:
+def group_lab_values(lab_values: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    groups: dict[str, list[dict[str, Any]]] = {"abnormal": [], "normal": [], "unclear": []}
+    for item in lab_values:
+        status = str(item.get("status", "")).strip().upper()
+        if status in {"HIGH", "LOW"}:
+            groups["abnormal"].append(item)
+        elif status == "IN RANGE":
+            groups["normal"].append(item)
+        else:
+            groups["unclear"].append(item)
+    return groups
+
+
+def build_summary(fields: dict[str, Any], language: str = "en") -> str:
+    if language not in {"en", "te"}:
+        raise ValueError("Unsupported summary language.")
     document_type = fields.get("document_type") or "medical document"
     document_date = fields.get("document_date") or "Not detected"
     diagnoses = list(dict.fromkeys(fields.get("diagnoses") or []))
@@ -877,30 +892,78 @@ def build_summary(fields: dict[str, Any]) -> str:
             unique_labs.append(lab)
     lab_values = unique_labs
 
-    sections = [
-        f"This appears to be a {document_type}.",
-        f"Document date recorded: {document_date}.",
-    ]
+    if language == "te":
+        sections = [
+            f"ఇది {document_type}గా కనిపిస్తోంది.",
+            f"నమోదైన పత్రం తేదీ: {document_date}.",
+        ]
+    else:
+        sections = [
+            f"This appears to be a {document_type}.",
+            f"Document date recorded: {document_date}.",
+        ]
     if diagnoses:
-        sections.append(f"Diagnoses mentioned in the source: {', '.join(diagnoses)}.")
+        label = "మూల పాఠ్యంలో పేర్కొన్న నిర్ధారణలు" if language == "te" else "Diagnoses mentioned in the source"
+        sections.append(f"{label}: {', '.join(diagnoses)}.")
     else:
-        sections.append("No diagnosis was explicitly stated in the source text.")
-    if medicines:
-        sections.append(f"Medicines mentioned: {', '.join(medicines)}.")
-    else:
-        sections.append("No medicines were explicitly listed in the source text.")
-    if lab_values:
-        formatted = ", ".join(
-            f"{item.get('name', 'Lab item')} {item.get('value', 'Not detected')}"
-            + (f" {item['unit']}" if item.get("unit") else "")
-            + (f" (reference range {item['reference_range']})" if item.get("reference_range") else "")
-            + (f" (reported status: {item['status']})" if item.get("status") else "")
-            for item in lab_values
+        sections.append(
+            "మూల పాఠ్యంలో నిర్ధారణ స్పష్టంగా పేర్కొనబడలేదు."
+            if language == "te" else "No diagnosis was explicitly stated in the source text."
         )
-        sections.append(f"Lab findings identified: {formatted}.")
+    if medicines:
+        label = "పేర్కొన్న మందులు" if language == "te" else "Medicines mentioned"
+        sections.append(f"{label}: {', '.join(medicines)}.")
     else:
-        sections.append("No verified numeric lab values were identified in the source text.")
+        sections.append(
+            "మూల పాఠ్యంలో మందులు స్పష్టంగా జాబితా చేయబడలేదు."
+            if language == "te" else "No medicines were explicitly listed in the source text."
+        )
+    lab_groups = group_lab_values(lab_values)
+    abnormal, normal, unclear = lab_groups["abnormal"], lab_groups["normal"], lab_groups["unclear"]
+
+    def format_lab(item: dict[str, str]) -> str:
+        result = f"{item.get('name', 'Lab item')} {item.get('value', 'Not detected')}"
+        if item.get("unit"):
+            result += f" {item['unit']}"
+        if item.get("reference_range"):
+            range_label = "సూచన పరిధి" if language == "te" else "reference range"
+            result += f" ({range_label} {item['reference_range']})"
+        status = str(item.get("status", "")).strip()
+        if status:
+            status_label = "నివేదించిన స్థితి" if language == "te" else "reported status"
+            result += f" ({status_label}: {status})"
+        return result
+
+    if language == "te":
+        abnormal_label, normal_label, unclear_label = "అసాధారణ ఫలితాలు", "సూచన పరిధిలో ఉన్న ఫలితాలు", "స్థితి స్పష్టంగా లేని ఫలితాలు"
+        no_abnormal = "మూల నివేదికలో HIGH లేదా LOWగా స్పష్టంగా గుర్తించిన ఫలితాలు లేవు; దీని అర్థం అన్ని ఫలితాలు సాధారణ పరిధిలో ఉన్నాయని కాదు."
+        no_normal = "మూల నివేదికలో IN RANGEగా స్పష్టంగా గుర్తించిన ఫలితాలు లేవు."
+        no_unclear = "స్థితి స్పష్టంగా లేని ఫలితాలు లేవు."
+        no_labs = "ప్రయోగశాల ఫలితాలు అందుబాటులో లేవు."
+    else:
+        abnormal_label, normal_label, unclear_label = "Abnormal results", "Within reference range", "Status unclear"
+        no_abnormal = "No results were explicitly marked HIGH or LOW by the source; this does not establish that all results are within range."
+        no_normal = "No results were explicitly marked IN RANGE by the source."
+        no_unclear = "No results have an unclear status."
+        no_labs = "No laboratory results are available."
+
+    if not lab_values:
+        sections.append(no_labs)
+    else:
+        sections.append(f"{abnormal_label}: " + (", ".join(map(format_lab, abnormal)) if abnormal else no_abnormal) + ".")
+        sections.append(f"{normal_label}: " + (", ".join(map(format_lab, normal)) if normal else no_normal) + ".")
+        unclear_items = []
+        for item in unclear:
+            rendered = format_lab(item)
+            if item.get("status"):
+                rendered += " (status unclear)" if language == "en" else " (స్థితి స్పష్టంగా లేదు)"
+            else:
+                rendered += " (status unclear: not reported)" if language == "en" else " (స్థితి స్పష్టంగా లేదు: నివేదించబడలేదు)"
+            unclear_items.append(rendered)
+        sections.append(f"{unclear_label}: " + (", ".join(unclear_items) if unclear_items else no_unclear) + ".")
     sections.append(
+        "ఈ సారాంశం సమాచార ప్రయోజనాలకే; ఇది నిర్ధారణ కాదు, మందుల మార్పులు లేదా ఇతర చికిత్స నిర్ణయాలను సూచించదు."
+        if language == "te" else
         "This summary is informational only, is not a diagnosis, and does not recommend medication changes or other treatment decisions."
     )
     return " ".join(sections)
@@ -1184,6 +1247,16 @@ async def healthcheck() -> JSONResponse:
     return JSONResponse({"status": "ok", "app": APP_NAME, "db": str(DB_PATH)})
 
 
+@app.post("/api/summary")
+async def generate_summary(request: Request) -> JSONResponse:
+    require_user(request)
+    payload = await request.json()
+    language = payload.get("language", "en")
+    if language not in {"en", "te"}:
+        raise HTTPException(status_code=400, detail="Choose English or Telugu for the summary.")
+    return JSONResponse({"summary": build_summary(payload.get("fields", {}), language=language)})
+
+
 @app.post("/api/upload")
 async def upload_document(request: Request, file: UploadFile = File(...)) -> JSONResponse:
     user = require_user(request)
@@ -1365,13 +1438,14 @@ def serialize_document(row: sqlite3.Row) -> dict[str, Any]:
         for lab in lab_values
     )
     if cleaned_dosages != dosages or duplicated_lab_summary:
+        summary_language = "te" if re.search(r"[\u0c00-\u0c7f]", summary) else "en"
         summary = build_summary({
             "document_type": row["document_type"],
             "document_date": row["document_date"],
             "medicines": medicines,
             "diagnoses": diagnoses,
             "lab_values": lab_values,
-        })
+        }, language=summary_language)
 
     return {
         "id": row["id"],
@@ -1383,7 +1457,9 @@ def serialize_document(row: sqlite3.Row) -> dict[str, Any]:
         "dosages": cleaned_dosages,
         "diagnoses": diagnoses,
         "lab_values": lab_values,
+        "lab_groups": group_lab_values(lab_values),
         "summary": summary,
+        "summary_language": "te" if re.search(r"[\u0c00-\u0c7f]", summary) else "en",
         "raw_text": row["raw_text"] or "",
         "source_type": row["source_type"],
         "is_synthetic": bool(row["is_synthetic"]),
@@ -1401,6 +1477,39 @@ async def get_record(request: Request, record_id: int) -> JSONResponse:
     if not row:
         raise HTTPException(status_code=404, detail="Record not found.")
     return JSONResponse(serialize_document(row))
+
+
+@app.put("/api/records/{record_id}/summary")
+async def update_record_summary(request: Request, record_id: int) -> JSONResponse:
+    user = require_user(request)
+    payload = await request.json()
+    language = payload.get("language", "en")
+    if language not in {"en", "te"}:
+        raise HTTPException(status_code=400, detail="Choose English or Telugu for the summary.")
+
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT * FROM documents WHERE id = ? AND owner_id = ?",
+        (record_id, user["id"]),
+    ).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Record not found.")
+
+    summary = build_summary({
+        "document_type": row["document_type"],
+        "document_date": row["document_date"],
+        "medicines": json.loads(row["medicines"] or "[]"),
+        "diagnoses": json.loads(row["diagnoses"] or "[]"),
+        "lab_values": json.loads(row["lab_values"] or "[]"),
+    }, language=language)
+    conn.execute(
+        "UPDATE documents SET summary = ? WHERE id = ? AND owner_id = ?",
+        (summary, record_id, user["id"]),
+    )
+    conn.commit()
+    conn.close()
+    return JSONResponse({"summary": summary, "summary_language": language})
 
 
 @app.get("/api/records/{record_id}/file")

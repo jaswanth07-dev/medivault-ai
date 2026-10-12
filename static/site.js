@@ -141,7 +141,33 @@ document.addEventListener('DOMContentLoaded', () => {
       const loading = document.getElementById('recordLoading');
       if (loading) loading.classList.add('hidden');
       container.classList.remove('hidden');
+      const summaryLanguage = document.getElementById('recordSummaryLanguage');
+      const summaryStatus = document.getElementById('recordSummaryStatus');
+      let currentLanguage = record.summary_language || 'en';
+      summaryLanguage.value = currentLanguage;
+      summaryLanguage.disabled = false;
       document.getElementById('recordSummary').textContent = record.summary || 'Not detected';
+      summaryLanguage.addEventListener('change', async () => {
+        const requestedLanguage = summaryLanguage.value;
+        summaryLanguage.disabled = true;
+        setMessage(summaryStatus, 'Updating summary…', '');
+        try {
+          const updated = await requestJson(`/api/records/${recordId}/summary`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ language: requestedLanguage }),
+          });
+          document.getElementById('recordSummary').textContent = updated.summary;
+          currentLanguage = updated.summary_language;
+          summaryLanguage.value = currentLanguage;
+          setMessage(summaryStatus, 'Summary language updated.', 'success-message');
+        } catch (error) {
+          summaryLanguage.value = currentLanguage;
+          setMessage(summaryStatus, error.message, 'error-message');
+        } finally {
+          summaryLanguage.disabled = false;
+        }
+      });
       const frameUrl = `/api/records/${recordId}/file`;
       document.getElementById('originalDocument').src = frameUrl;
       document.getElementById('downloadOriginal').href = frameUrl;
@@ -156,12 +182,44 @@ document.addEventListener('DOMContentLoaded', () => {
         fields.append(section);
       });
       const labSection = node('div', undefined, 'detail-field');
-      labSection.append(node('b', 'Laboratory values'));
-      if (record.lab_values?.length) {
-        const list = node('ul');
-        record.lab_values.forEach((lab) => list.append(node('li', `${lab.name || 'Lab'}: ${lab.value || 'Not detected'} ${lab.unit || ''}${lab.reference_range ? ` · Reference ${lab.reference_range}` : ''}`)));
-        labSection.append(list);
-      } else labSection.append(node('p', 'Not detected'));
+      const isTelugu = record.summary_language === 'te';
+      labSection.append(node('b', isTelugu ? 'ప్రయోగశాల ఫలితాలు' : 'Laboratory results'));
+      const labGroups = record.lab_groups || { abnormal: [], normal: [], unclear: [] };
+      const groupLabels = isTelugu
+        ? [
+          ['abnormal', 'అసాధారణ ఫలితాలు (మూల నివేదికలో HIGH/LOW)'],
+          ['normal', 'సూచన పరిధిలో ఉన్న ఫలితాలు (మూల నివేదికలో IN RANGE)'],
+          ['unclear', 'స్థితి స్పష్టంగా లేని ఫలితాలు'],
+        ]
+        : [
+          ['abnormal', 'Abnormal results (source-reported HIGH/LOW)'],
+          ['normal', 'Within reference range (source-reported IN RANGE)'],
+          ['unclear', 'Status unclear'],
+        ];
+      groupLabels.forEach(([groupName, label]) => {
+        const group = node('div', undefined, 'lab-result-group');
+        group.append(node('h3', label));
+        const results = labGroups[groupName] || [];
+        if (!results.length) {
+          const emptyText = groupName === 'abnormal'
+            ? (isTelugu ? 'మూల నివేదికలో HIGH లేదా LOWగా స్పష్టంగా గుర్తించిన ఫలితాలు లేవు.' : 'No results explicitly marked HIGH or LOW by the source; this does not establish that all results are within range.')
+            : groupName === 'normal'
+              ? (isTelugu ? 'మూల నివేదికలో IN RANGEగా స్పష్టంగా గుర్తించిన ఫలితాలు లేవు.' : 'No results explicitly marked IN RANGE by the source.')
+              : (isTelugu ? 'స్థితి స్పష్టంగా లేని ఫలితాలు లేవు.' : 'No results have an unclear status.');
+          group.append(node('p', emptyText));
+        } else {
+          const list = node('ul');
+          results.forEach((lab) => {
+            const parts = [`${lab.name || 'Lab'}: ${lab.value || 'Not detected'}${lab.unit ? ` ${lab.unit}` : ''}`];
+            if (lab.reference_range) parts.push(`${isTelugu ? 'సూచన పరిధి' : 'Reference range'}: ${lab.reference_range}`);
+            if (lab.status) parts.push(`${isTelugu ? 'నివేదించిన స్థితి' : 'Reported status'}: ${lab.status}`);
+            if (groupName === 'unclear') parts.push(isTelugu ? 'స్థితి స్పష్టంగా లేదు' : 'Status unclear');
+            list.append(node('li', parts.join(' · ')));
+          });
+          group.append(list);
+        }
+        labSection.append(group);
+      });
       fields.append(labSection);
       if (record.raw_text) {
         const details = node('details', undefined, 'raw-text-details');

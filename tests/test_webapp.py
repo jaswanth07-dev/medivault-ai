@@ -106,14 +106,28 @@ class MediVaultWebWorkflowTests(unittest.TestCase):
         detail = self.client.get(f"/api/records/{record_id}")
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.json()["raw_text"], extraction["extracted_text"])
-        self.assertEqual(self.client.get(f"/api/records/{record_id}/file").status_code, 200)
+        source_file_before = self.client.get(f"/api/records/{record_id}/file")
+        self.assertEqual(source_file_before.status_code, 200)
         self.assertEqual(self.client.get(f"/records/{record_id}").status_code, 200)
+        page = self.client.get(f"/records/{record_id}")
+        self.assertIn('id="recordSummaryLanguage"', page.text)
+        telugu_update = self.client.put(f"/api/records/{record_id}/summary", json={"language": "te"})
+        self.assertEqual(telugu_update.status_code, 200, telugu_update.text)
+        self.assertEqual(telugu_update.json()["summary_language"], "te")
+        reopened = self.client.get(f"/api/records/{record_id}").json()
+        self.assertEqual(reopened["summary_language"], "te")
+        self.assertEqual(reopened["raw_text"], extraction["extracted_text"])
+        english_update = self.client.put(f"/api/records/{record_id}/summary", json={"language": "en"})
+        self.assertEqual(english_update.status_code, 200, english_update.text)
+        self.assertEqual(self.client.get(f"/api/records/{record_id}").json()["summary_language"], "en")
+        self.assertEqual(self.client.get(f"/api/records/{record_id}/file").content, source_file_before.content)
 
         second_user = TestClient(medivault.app)
         self.signup(second_user, "two@example.test")
         self.assertEqual(second_user.get("/api/timeline").json()["records"], [])
         self.assertEqual(second_user.get(f"/api/records/{record_id}").status_code, 404)
         self.assertEqual(second_user.get(f"/api/records/{record_id}/file").status_code, 404)
+        self.assertEqual(second_user.put(f"/api/records/{record_id}/summary", json={"language": "te"}).status_code, 404)
         second_user.close()
 
         feedback = self.client.post(
@@ -185,6 +199,164 @@ Medication: Metformin 500 mg twice daily
         self.assertEqual(len(inline_dosages), 1)
         self.assertEqual(inline_dosages[0], "Paracetamol: 500 mg; instruction: 1 tablet as needed")
 
+    def test_english_and_telugu_summaries_preserve_source_facts(self) -> None:
+        fields = {
+            "document_type": "Lab report",
+            "document_date": "2025-02-14",
+            "diagnoses": ["Type 2 diabetes"],
+            "medicines": ["Metformin"],
+            "dosages": ["Metformin 500 mg twice daily"],
+            "lab_values": [{
+                "name": "Fasting glucose", "value": "94.0", "unit": "mg/dL",
+                "reference_range": "70-99", "status": "IN RANGE",
+            }],
+        }
+        english = medivault.build_summary(fields)
+        telugu = medivault.build_summary(fields, language="te")
+
+        self.assertIn("This appears to be a Lab report", english)
+        self.assertIn("Document date recorded: 2025-02-14", english)
+        self.assertIn("Metformin", english)
+        self.assertIn("Fasting glucose 94.0 mg/dL (reference range 70-99)", english)
+        self.assertIn("ఇది Lab reportగా కనిపిస్తోంది", telugu)
+        self.assertIn("2025-02-14", telugu)
+        self.assertIn("Type 2 diabetes", telugu)
+        self.assertIn("Metformin", telugu)
+        self.assertIn("94.0 mg/dL", telugu)
+        self.assertIn("70-99", telugu)
+        self.assertIn("IN RANGE", telugu)
+        self.assertIn("సమాచార ప్రయోజనాలకే", telugu)
+        self.assertNotIn("diagnosis", telugu.casefold())
+
+    def test_lab_summary_groups_reported_abnormal_normal_and_unclear_results(self) -> None:
+        labs = [
+            {"name": "Hemoglobin", "value": "10.6", "unit": "g/dL", "reference_range": "12.0-16.0", "status": "LOW"},
+            {"name": "Fasting glucose", "value": "112", "unit": "mg/dL", "reference_range": "70-99", "status": "HIGH"},
+            {"name": "Total cholesterol", "value": "228", "unit": "mg/dL", "reference_range": "< 200", "status": "HIGH"},
+            {"name": "HDL cholesterol", "value": "38", "unit": "mg/dL", "reference_range": ">= 50", "status": "LOW"},
+            {"name": "Creatinine", "value": "0.9", "unit": "mg/dL", "reference_range": "0.6-1.1", "status": "IN RANGE"},
+            {"name": "White blood cells (WBC)", "value": "7.2", "unit": "10^3/µL", "reference_range": "4.0-11.0", "status": "IN RANGE"},
+            {"name": "Platelets", "value": "265", "unit": "10^3/µL", "reference_range": "150-400", "status": "IN RANGE"},
+            {"name": "Ferritin", "value": "24", "unit": "ng/mL", "reference_range": "15-150", "status": "IN RANGE"},
+        ]
+        fields = {"document_date": "2026-10-10", "lab_values": labs}
+        english = medivault.build_summary(fields)
+        telugu = medivault.build_summary(fields, language="te")
+
+        self.assertLess(english.index("Abnormal results"), english.index("Within reference range"))
+        self.assertLess(english.index("Within reference range"), english.index("Status unclear"))
+        self.assertLess(telugu.index("అసాధారణ ఫలితాలు"), telugu.index("సూచన పరిధిలో ఉన్న ఫలితాలు"))
+        self.assertLess(telugu.index("సూచన పరిధిలో ఉన్న ఫలితాలు"), telugu.index("స్థితి స్పష్టంగా లేని ఫలితాలు"))
+        for lab in labs:
+            for value in (lab["name"], lab["value"], lab["unit"], lab["reference_range"], lab["status"]):
+                self.assertIn(value, english)
+                self.assertIn(value, telugu)
+        self.assertEqual(english.count("reported status: HIGH"), 2)
+        self.assertEqual(english.count("reported status: LOW"), 2)
+        self.assertEqual(english.count("reported status: IN RANGE"), 4)
+
+    def test_lab_summary_does_not_infer_missing_or_unknown_status(self) -> None:
+        labs = [
+            {"name": "Creatinine", "value": "0.9", "unit": "mg/dL", "reference_range": "0.6-1.1", "status": "IN RANGE"},
+            {"name": "Ferritin", "value": "24", "unit": "ng/mL", "reference_range": "15-150"},
+            {"name": "Glucose", "value": "105", "unit": "mg/dL", "reference_range": "70-99", "status": "BORDERLINE"},
+        ]
+        english = medivault.build_summary({"lab_values": labs})
+        telugu = medivault.build_summary({"lab_values": labs}, language="te")
+        for summary in (english, telugu):
+            self.assertIn("0.9 mg/dL", summary)
+            self.assertIn("15-150", summary)
+            self.assertIn("24 ng/mL", summary)
+            self.assertIn("105 mg/dL", summary)
+            self.assertIn("BORDERLINE", summary)
+        self.assertIn("No results were explicitly marked HIGH or LOW", english)
+        self.assertIn("this does not establish that all results are within range", english)
+        self.assertIn("status unclear: not reported", english)
+        self.assertIn("status unclear", english)
+        self.assertNotIn("reported status: HIGH", english)
+        self.assertNotIn("reported status: LOW", english)
+
+    def test_saved_record_page_displays_grouped_lab_summary_and_values(self) -> None:
+        self.signup(self.client, "grouped-record@example.test")
+        user = self.client.get("/api/auth/me").json()
+        labs = [
+            {"name": "Hemoglobin", "value": "10.6", "unit": "g/dL", "reference_range": "12.0-16.0", "status": "LOW"},
+            {"name": "Fasting glucose", "value": "112", "unit": "mg/dL", "reference_range": "70-99", "status": "HIGH"},
+            {"name": "Total cholesterol", "value": "228", "unit": "mg/dL", "reference_range": "< 200", "status": "HIGH"},
+            {"name": "HDL cholesterol", "value": "38", "unit": "mg/dL", "reference_range": ">= 50", "status": "LOW"},
+            {"name": "Creatinine", "value": "0.9", "unit": "mg/dL", "reference_range": "0.6-1.1", "status": "IN RANGE"},
+            {"name": "White blood cells (WBC)", "value": "7.2", "unit": "10^3/µL", "reference_range": "4.0-11.0", "status": "IN RANGE"},
+            {"name": "Platelets", "value": "265", "unit": "10^3/µL", "reference_range": "150-400", "status": "IN RANGE"},
+            {"name": "Ferritin", "value": "24", "unit": "ng/mL", "reference_range": "15-150", "status": "IN RANGE"},
+        ]
+        fields = {"document_type": "Lab report", "document_date": "2026-10-10", "lab_values": labs}
+        summary = medivault.build_summary(fields)
+        conn = medivault.get_db_connection()
+        cursor = conn.execute(
+            """INSERT INTO documents (filename, stored_path, document_date, document_type,
+               medicines, dosages, diagnoses, lab_values, summary, raw_text, source_type,
+               is_synthetic, created_at, status, owner_id)
+               VALUES (?, ?, ?, ?, '[]', '[]', '[]', ?, ?, ?, 'pdf', 1, ?, 'verified', ?)""",
+            (
+                "grouped_labs.pdf", "storage/sample_docs/grouped_labs.pdf", "2026-10-10", "Lab report",
+                json.dumps(labs), summary, "original extracted text", medivault.datetime.utcnow().isoformat(timespec="seconds"), user["id"],
+            ),
+        )
+        conn.commit()
+        record_id = cursor.lastrowid
+        conn.close()
+
+        page = self.client.get(f"/records/{record_id}")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('id="recordSummary"', page.text)
+        displayed_record = self.client.get(f"/api/records/{record_id}").json()
+        displayed_summary = displayed_record["summary"]
+        self.assertLess(displayed_summary.index("Abnormal results"), displayed_summary.index("Within reference range"))
+        self.assertLess(displayed_summary.index("Within reference range"), displayed_summary.index("Status unclear"))
+        self.assertEqual(len(displayed_record["lab_groups"]["abnormal"]), 4)
+        self.assertEqual(len(displayed_record["lab_groups"]["normal"]), 4)
+        for lab in labs:
+            self.assertIn(lab["name"], displayed_summary)
+            self.assertIn(lab["value"], displayed_summary)
+            self.assertIn(lab["reference_range"], displayed_summary)
+            self.assertIn(lab["status"], displayed_summary)
+
+        telugu_update = self.client.put(f"/api/records/{record_id}/summary", json={"language": "te"}).json()
+        self.assertIn("అసాధారణ ఫలితాలు", telugu_update["summary"])
+        self.assertIn("సూచన పరిధిలో ఉన్న ఫలితాలు", telugu_update["summary"])
+        self.assertIn("స్థితి స్పష్టంగా లేని ఫలితాలు", telugu_update["summary"])
+        for lab in labs:
+            self.assertIn(lab["value"], telugu_update["summary"])
+            self.assertIn(lab["reference_range"], telugu_update["summary"])
+            self.assertIn(lab["status"], telugu_update["summary"])
+
+        site_script = (medivault.BASE_DIR / "static" / "site.js").read_text(encoding="utf-8")
+        self.assertIn("recordSummary').textContent = record.summary", site_script)
+        for heading in ("Abnormal results (source-reported HIGH/LOW)", "Within reference range (source-reported IN RANGE)", "Status unclear"):
+            self.assertIn(heading, site_script)
+
+    def test_summary_language_api_and_upload_selector(self) -> None:
+        self.signup(self.client, "summary-language@example.test")
+        page = self.client.get("/documents")
+        self.assertIn('id="summaryLanguage"', page.text)
+        self.assertIn('<option value="en" selected>English</option>', page.text)
+        payload = {
+            "language": "te",
+            "fields": {
+                "document_date": "2025-02-14",
+                "document_type": "Lab report",
+                "medicines": ["Paracetamol"],
+                "dosages": ["Paracetamol 500 mg"],
+                "lab_values": [{"name": "Hemoglobin", "value": "12.4", "unit": "g/dL", "reference_range": "12-16"}],
+            },
+        }
+        response = self.client.post("/api/summary", json=payload)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("Paracetamol", response.json()["summary"])
+        self.assertIn("12.4 g/dL", response.json()["summary"])
+        self.assertIn("12-16", response.json()["summary"])
+        self.assertEqual(self.client.post("/api/summary", json={"language": "xx", "fields": {}}).status_code, 400)
+
     def test_existing_abnormal_lab_report_extracts_all_eight_flagged_results(self) -> None:
         originals = medivault.BASE_DIR / "storage" / "originals" / "user_2"
         report_path = next(originals.glob("*_medivault_sample_lab_report_abnormal_demo.pdf"))
@@ -203,6 +375,13 @@ Medication: Metformin 500 mg twice daily
             {"name": "Ferritin", "value": "24", "unit": "ng/mL", "reference_range": "15-150", "status": "IN RANGE"},
         ]
         self.assertEqual(fields["lab_values"], expected)
+        summary = fields["summary"]
+        self.assertLess(summary.index("Abnormal results"), summary.index("Within reference range"))
+        for lab in expected:
+            self.assertIn(lab["name"], summary)
+            self.assertIn(lab["value"], summary)
+            self.assertIn(lab["reference_range"], summary)
+            self.assertIn(lab["status"], summary)
         self.assertEqual(fields["medicines"], [])
         self.assertEqual(fields["dosages"], [])
         for status in ("LOW", "HIGH", "IN RANGE"):

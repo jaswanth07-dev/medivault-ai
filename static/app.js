@@ -116,6 +116,7 @@ function previewSummary(text) {
 
 function populateReview(fields, recordMeta = {}) {
   showReviewPanel();
+  document.getElementById('summaryLanguage').value = 'en';
   document.getElementById('document_date').value = fields.document_date || 'Not detected';
   document.getElementById('document_type').value = fields.document_type || 'Not detected';
   document.getElementById('medicines').value = listToText(fields.medicines && fields.medicines.length ? fields.medicines : ['Not detected']);
@@ -128,6 +129,26 @@ function populateReview(fields, recordMeta = {}) {
     ...recordMeta,
     ...fields,
   };
+}
+
+async function updateSummaryLanguage() {
+  if (!state.currentRecord) return;
+  const fields = {
+    document_type: document.getElementById('document_type').value.trim() || 'medical document',
+    document_date: document.getElementById('document_date').value.trim() || 'Not detected',
+    diagnoses: linesToList(document.getElementById('diagnoses').value).filter((item) => item !== 'Not detected'),
+    medicines: linesToList(document.getElementById('medicines').value).filter((item) => item !== 'Not detected'),
+    lab_values: parseLabValues(document.getElementById('lab_values').value),
+  };
+  const response = await fetch('/api/summary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ language: document.getElementById('summaryLanguage').value, fields }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || 'Summary could not be generated.');
+  document.getElementById('summaryText').value = data.summary;
+  previewSummary(data.summary);
 }
 
 async function loadTimeline() {
@@ -304,6 +325,9 @@ document.getElementById('removeFileBtn').addEventListener('click', () => {
 });
 fileInput.addEventListener('change', updateSelectedFile);
 document.getElementById('saveRecordBtn')?.addEventListener('click', saveRecord);
+document.getElementById('summaryLanguage')?.addEventListener('change', () => {
+  updateSummaryLanguage().catch((error) => setUploadStatus(error.message, 'error'));
+});
 document.getElementById('demoLoadBtn')?.addEventListener('click', handleDemoLoad);
 
 loadTimeline();
